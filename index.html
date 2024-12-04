@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tracking Example</title>
+  <style>
+    body {
+      height: 2000px; /* Make the page scrollable */
+    }
+    img {
+      display: block;
+      margin: 20px auto;
+    }
+    button {
+      display: block;
+      margin: 20px auto;
+    }
+  </style>
+</head>
+<body>
+  <h1>Mouse and Scroll Tracking</h1>
+  <img src="https://via.placeholder.com/150" alt="Sample Image">
+  <button>Sample Button</button>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.0.4/pako.min.js"></script>
+  <script>
+    // Create an object to store the tracking data
+    let trackingData = {
+      mouseX: 0,
+      mouseY: 0,
+      scrollX: 0,
+      scrollY: 0,
+      hoverElements: [],
+      clickElements: []
+    };
+
+    // Array to store collected data
+    let collectedData = [];
+
+    // Update mouse position
+    document.addEventListener('mousemove', (event) => {
+      trackingData.mouseX = event.clientX;
+      trackingData.mouseY = event.clientY;
+    });
+
+    // Update scroll position
+    document.addEventListener('scroll', () => {
+      trackingData.scrollX = window.scrollX;
+      trackingData.scrollY = window.scrollY;
+    });
+
+    // Track hover on images and buttons
+    const trackHover = (event) => {
+      if (event.target.tagName === 'IMG' || event.target.tagName === 'BUTTON') {
+        trackingData.hoverElements.push({ type: event.target.tagName, time: Date.now() });
+      }
+    };
+    document.addEventListener('mouseover', trackHover);
+
+    // Track clicks on images and buttons
+    const trackClick = (event) => {
+      if (event.target.tagName === 'IMG' || event.target.tagName === 'BUTTON') {
+        trackingData.clickElements.push({ type: event.target.tagName, time: Date.now() });
+      }
+    };
+    document.addEventListener('click', trackClick);
+
+    // Function to compress data
+    const compressData = (data) => {
+      const stringData = JSON.stringify(data);
+      const compressedData = pako.deflate(stringData, { to: 'string' });
+      return compressedData;
+    };
+
+    // Function to send data to the server
+    const sendData = () => {
+      if (collectedData.length === 0) return;
+
+      console.log('Sending data:', collectedData);
+
+      const compressedData = compressData(collectedData);
+
+      fetch('http://localhost:3000/save-tracking-data', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/octet-stream'
+        },
+        body: compressedData
+      }).then(() => {
+        collectedData = []; // Clear the collected data after sending
+      }).catch(err => console.error('Error sending tracking data:', err));
+    };
+
+    // Poll data every 250ms
+    const pollData = () => {
+      collectedData.push({ ...trackingData, timestamp: Date.now() });
+      trackingData.hoverElements = [];
+      trackingData.clickElements = [];
+    };
+
+    setInterval(pollData, 250);
+
+    // Send data every 5 seconds
+    setInterval(sendData, 5000);
+  </script>
+</body>
+</html>
